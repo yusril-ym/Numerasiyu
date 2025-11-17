@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NUMERASIYU - UNNES</title>
+    <title>NUMERASIYU</title>
     
     <!-- Memuat Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -39,39 +39,50 @@
             text-align: center;
             padding: 1rem;
         }
+
+        /* Hamparan Izin Sensor (BARU) */
+        #sensor-permission-overlay {
+            display: none; /* Disembunyikan secara default */
+            position: fixed;
+            inset: 0;
+            background-color: rgba(0, 0, 0, 0.75); /* Latar belakang gelap */
+            z-index: 9998; /* Di bawah rotate, tapi di atas app */
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 1rem;
+        }
         
         /* Saat dalam mode portrait */
         @media (orientation: portrait) {
-            #app-container {
-                display: none; /* Sembunyikan aplikasi */
+            #app-container, #sensor-permission-overlay {
+                display: none; /* Sembunyikan aplikasi & izin */
             }
             #rotate-overlay {
-                display: flex; /* Tampilkan hamparan */
+                display: flex; /* Tampilkan hamparan rotasi */
             }
         }
 
         /* Saat dalam mode landscape */
         @media (orientation: landscape) {
-            #app-container {
-                display: flex; /* Tampilkan aplikasi */
-            }
+            /* Logika untuk menampilkan izin ATAU aplikasi akan ditangani oleh JS */
             #rotate-overlay {
-                display: none; /* Sembunyikan hamparan */
+                display: none; /* Sembunyikan hamparan rotasi */
             }
+            /* #app-container akan 'none' atau 'flex' */
+            /* #sensor-permission-overlay akan 'none' atau 'flex' */
         }
 
         /* Style khusus untuk pemindai QR */
         #qr-video, #qr-canvas {
             display: none;
         }
-        /* Style untuk kotak pemindai */
         #qr-scanner-container {
-            /* Tidak ada padding-top: 100% lagi */
             overflow: hidden;
             background-color: #333;
         }
         #qr-video {
-            /* Dibuat absolute untuk mengisi container */
             position: absolute;
             top: 0;
             left: 0;
@@ -91,8 +102,23 @@
         <p class="text-gray-600 mt-2">Aplikasi ini dirancang untuk tampilan landscape.</p>
     </div>
 
-    <!-- Container Utama Aplikasi -->
-    <div id="app-container" class="bg-white flex-col w-screen h-screen">
+    <!-- Hamparan Izin Sensor (BARU) -->
+    <div id="sensor-permission-overlay">
+        <div class="bg-white p-6 md:p-8 rounded-xl shadow-2xl max-w-lg w-full">
+            <div class="flex justify-center mb-4">
+                <i data-lucide="shield-check" class="w-16 h-16 text-blue-500"></i>
+            </div>
+            <h2 class="text-2xl font-bold text-gray-800 text-center mb-3">Konfirmasi Izin</h2>
+            <p class="text-gray-600 text-center mb-2">Untuk pengalaman penuh, aplikasi ini memerlukan akses ke sensor perangkat Anda.</p>
+            <p class="text-gray-600 text-center mb-6">Ini termasuk <strong class="text-gray-700">kamera</strong> (untuk Pemindai QR) dan <strong class="text-gray-700">sensor gerak</strong> (untuk fitur Augmented Reality di masa depan). Kami menghargai privasi Anda.</p>
+            <button id="grant-permission-button" class="w-full bg-blue-500 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-blue-600 transition duration-300">
+                Mengerti & Lanjutkan
+            </button>
+        </div>
+    </div>
+
+    <!-- Container Utama Aplikasi (Awalnya disembunyikan) -->
+    <div id="app-container" class="bg-white flex-col w-screen h-screen" style="display: none;">
 
         <!-- Konten Utama (Halaman yang bisa diganti) -->
         <main class="flex-grow p-4 overflow-auto">
@@ -134,6 +160,7 @@
                     <!-- Bawah: Pemindai QR -->
                     <div class="w-full h-full flex-shrink-0 flex flex-col p-4 border-4 border-blue-500 rounded-lg bg-white items-center snap-start">
                         <h3 class="text-lg font-semibold text-center text-blue-800 mb-2">Pemindai QR</h3>
+                        <p class="text-sm text-gray-500 text-center mb-2">Gulir ke atas untuk kembali ke materi.</p>
                         
                         <!-- UI Pemindai -->
                         <div id="qr-scanner-ui" class="w-full flex flex-col flex-grow justify-center min-h-0">
@@ -148,7 +175,7 @@
                                 <video id="qr-video" playsinline></video>
                             </div>
 
-                            <!-- Wadah Hasil Pindaian (DIUBAH: min-height: 66%) -->
+                            <!-- Wadah Hasil Pindaian -->
                             <div id="qr-result-container" class="w-full flex-grow flex flex-col min-h-0" style="display: none; min-height: 66%;">
                                 <p class="text-gray-700 font-semibold mb-2">Hasil Pindaian:</p>
                                 
@@ -279,7 +306,6 @@
         let qrStream = null;
         let qrAnimationLoopId = null;
 
-        // Fungsi untuk menampilkan pesan error pemindai
         function showQrError(message) {
             qrStatusMessage.textContent = message;
             qrStatusMessage.style.display = 'block';
@@ -287,9 +313,7 @@
             qrResultContainer.style.display = 'none';
         }
 
-        // Fungsi untuk memulai pemindai
         async function startQrScanner() {
-            // Reset UI
             qrStatusMessage.textContent = "Meminta izin kamera...";
             qrStatusMessage.style.display = 'block';
             qrScannerContainer.style.display = 'none';
@@ -298,7 +322,6 @@
             qrDataPreview.style.display = 'none';
             qrOutputFrame.src = 'about:blank';
 
-            // Hentikan stream lama jika ada
             if (qrStream) {
                 qrStream.getTracks().forEach(track => track.stop());
                 qrStream = null;
@@ -308,14 +331,12 @@
                 qrAnimationLoopId = null;
             }
 
-            // Cek ketersediaan jsQR
             if (typeof jsQR === 'undefined') {
                 showQrError("Gagal memuat pustaka QR. Coba segarkan halaman.");
                 return;
             }
 
             try {
-                // Meminta akses kamera (prioritaskan kamera belakang)
                 qrStream = await navigator.mediaDevices.getUserMedia({ 
                     video: { facingMode: "environment" } 
                 });
@@ -327,7 +348,6 @@
                 qrScannerContainer.style.display = 'block';
 
                 qrVideo.play();
-                // Mulai scanning loop
                 qrAnimationLoopId = requestAnimationFrame(qrTick);
 
             } catch (err) {
@@ -342,7 +362,6 @@
             }
         }
 
-        // Fungsi untuk menghentikan pemindai
         function stopQrScanner() {
             if (qrStream) {
                 qrStream.getTracks().forEach(track => track.stop());
@@ -356,7 +375,6 @@
                 qrVideo.pause();
                 qrVideo.srcObject = null;
             }
-            // Reset UI pemindai ke status awal
             if (qrScannerContainer) {
                 qrScannerContainer.style.display = 'none';
             }
@@ -369,7 +387,6 @@
             }
         }
 
-        // Fungsi loop pemindaian per frame
         function qrTick() {
             if (qrVideo.readyState === qrVideo.HAVE_ENOUGH_DATA) {
                 qrCanvas.height = qrVideo.videoHeight;
@@ -382,52 +399,42 @@
                 });
 
                 if (code) {
-                    // Kode ditemukan!
                     handleQrCode(code.data);
-                    return; // Hentikan loop
+                    return;
                 }
             }
-            // Lanjut ke frame berikutnya
             if (qrStream && qrStream.active) {
                 qrAnimationLoopId = requestAnimationFrame(qrTick);
             }
         }
 
-        // Fungsi untuk menangani hasil QR
         function handleQrCode(data) {
-            // Hentikan video tapi jangan hentikan stream dulu
             qrVideo.pause();
             if (qrAnimationLoopId) {
                 cancelAnimationFrame(qrAnimationLoopId);
                 qrAnimationLoopId = null;
             }
 
-            // Tampilkan hasil (DIUBAH: 'flex' bukan 'block')
             qrScannerContainer.style.display = 'none';
-            qrResultContainer.style.display = 'flex'; // <-- PERBAIKAN: Menggunakan 'flex' agar layout internal benar
-            qrOutputData.value = data; // Selalu isi textarea (untuk disalin)
+            qrResultContainer.style.display = 'flex'; // Menggunakan 'flex'
+            qrOutputData.value = data;
 
-            // Periksa apakah data adalah URL
             if (data.startsWith('http://') || data.startsWith('https://') || (data.startsWith('www.') && !data.includes(' '))) {
                 qrOutputFrame.src = data.startsWith('www.') ? `https://${data}` : data;
-                qrIframePreview.style.display = 'block'; // Tampilkan pratinjau iframe
-                qrDataPreview.style.display = 'none'; // Sembunyikan pratinjau data
+                qrIframePreview.style.display = 'block';
+                qrDataPreview.style.display = 'none';
             } else {
-                // Jika teks biasa
-                qrIframePreview.style.display = 'none'; // Sembunyikan pratinjau iframe
-                qrDataPreview.style.display = 'block'; // Tampilkan pratinjau data
+                qrIframePreview.style.display = 'none';
+                qrDataPreview.style.display = 'block';
             }
             
-            // Render ulang ikon lucide
             lucide.createIcons();
         }
 
-        // Event listener untuk tombol "Salin Teks"
         qrCopyButton.addEventListener('click', () => {
             qrOutputData.select();
             try {
                 document.execCommand('copy');
-                // Beri umpan balik visual singkat jika perlu (opsional)
                 qrCopyButton.classList.add('bg-blue-500');
                 setTimeout(() => {
                     qrCopyButton.classList.remove('bg-blue-500');
@@ -437,9 +444,7 @@
             }
         });
 
-        // Event listener untuk tombol "Pindai Lagi"
         qrScanAgainButton.addEventListener('click', () => {
-            // Mulai ulang scanner (tanpa mematikan stream, hanya resume)
             qrResultContainer.style.display = 'none';
             qrScannerContainer.style.display = 'block';
             qrVideo.play();
@@ -447,8 +452,12 @@
         });
 
 
-        // --- Logika Navigasi Halaman (Utama) ---
+        // --- Logika Navigasi Halaman & Izin Sensor (Utama) ---
         document.addEventListener('DOMContentLoaded', () => {
+            const appContainer = document.getElementById('app-container');
+            const sensorOverlay = document.getElementById('sensor-permission-overlay');
+            const grantButton = document.getElementById('grant-permission-button');
+
             const navButtons = document.querySelectorAll('.nav-button');
             const pages = document.querySelectorAll('.page');
             
@@ -458,6 +467,34 @@
                 'page-asesmen': 'text-red-500',
                 'page-profil': 'text-yellow-500'
             };
+
+            // Fungsi untuk menampilkan aplikasi utama
+            function showApp() {
+                sensorOverlay.style.display = 'none';
+                appContainer.style.display = 'flex'; // Tampilkan aplikasi
+                setActivePage('page-awal'); // Set halaman awal
+            }
+
+            // Cek orientasi saat memuat
+            if (window.matchMedia("(orientation: landscape)").matches) {
+                // Jika landscape, tampilkan overlay izin
+                sensorOverlay.style.display = 'flex';
+                appContainer.style.display = 'none';
+            }
+
+            // Tambahkan listener ke tombol izin
+            grantButton.addEventListener('click', showApp);
+
+            // Listener untuk perubahan orientasi (jika user memutar balik ke portrait)
+            window.matchMedia("(orientation: portrait)").addEventListener("change", (e) => {
+                if (!e.matches) {
+                    // Jika baru saja diputar ke landscape
+                    // Hanya tampilkan overlay izin JIKA aplikasi belum berjalan
+                    if (appContainer.style.display === 'none' && sensorOverlay.style.display === 'none') {
+                        sensorOverlay.style.display = 'flex';
+                    }
+                }
+            });
             
             function setActivePage(pageId) {
                 pages.forEach(page => {
@@ -482,18 +519,14 @@
                     }
                 });
 
-                // Logika untuk mengontrol pemindai QR
                 if (pageId === 'page-materi') {
-                    // Jika pindah ke Halaman Materi, mulai pemindai
                     console.log("Mulai pemindai QR...");
                     startQrScanner();
                 } else {
-                    // Jika pindah ke halaman LAIN, hentikan pemindai
                     console.log("Hentikan pemindai QR...");
                     stopQrScanner();
                 }
 
-                // Render ulang ikon lucide jika ada yg baru
                 lucide.createIcons();
             }
 
@@ -505,21 +538,16 @@
             });
 
             // Set halaman awal sebagai halaman aktif saat pertama kali dimuat
-            setActivePage('page-awal');
+            // (Dipindahkan ke dalam showApp() agar terjadi setelah izin)
 
-            // Tambahkan event listener untuk tombol keluar
             const exitButton = document.getElementById('exit-button');
             if (exitButton) {
                 exitButton.addEventListener('click', () => {
                     console.log("Mencoba keluar dari aplikasi...");
-                    // Peringatan: window.close() memiliki batasan keamanan
-                    // dan mungkin tidak berfungsi di semua browser,
-                    // terutama jika jendela tidak dibuka oleh skrip.
                     window.close();
                 });
             }
         });
     </script>
 </body>
-
 </html>
