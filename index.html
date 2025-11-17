@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NUMERASIYU - UNNES</title>
+    
+    <!-- Memuat Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Memuat Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+
+    <!-- Memuat pustaka jsQR untuk decoding QR (BARU) -->
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+    
+    <style>
+        /* Menggunakan font Inter */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        
+        /* Menyembunyikan halaman yang tidak aktif */
+        .page.hidden {
+            display: none;
+        }
+        
+        /* Hamparan untuk meminta rotasi */
+        #rotate-overlay {
+            display: none; /* Disembunyikan secara default */
+            position: fixed;
+            inset: 0;
+            background-color: #f3f4f6; /* bg-gray-100 */
+            z-index: 9999;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 1rem;
+        }
+        
+        /* Saat dalam mode portrait */
+        @media (orientation: portrait) {
+            #app-container {
+                display: none; /* Sembunyikan aplikasi */
+            }
+            #rotate-overlay {
+                display: flex; /* Tampilkan hamparan */
+            }
+        }
+
+        /* Saat dalam mode landscape */
+        @media (orientation: landscape) {
+            #app-container {
+                display: flex; /* Tampilkan aplikasi */
+            }
+            #rotate-overlay {
+                display: none; /* Sembunyikan hamparan */
+            }
+        }
+
+        /* (BARU) Style khusus untuk pemindai QR */
+        /* Sembunyikan video dan canvas secara default */
+        #qr-video, #qr-canvas {
+            display: none;
+        }
+        /* Style untuk kotak pemindai */
+        #qr-scanner-container {
+            position: relative;
+            width: 100%;
+            /* Membuat rasio aspek 1:1 */
+            padding-top: 100%; 
+            overflow: hidden;
+            border-radius: 0.5rem;
+            background-color: #333;
+        }
+        #qr-video {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+
+    <!-- Hamparan Peringatan Rotasi -->
+    <div id="rotate-overlay">
+        <i data-lucide="rotate-cw" class="w-16 h-16 text-gray-700 mb-4 animate-spin" style="animation-duration: 3s;"></i>
+        <h2 class="text-xl font-semibold text-gray-800">Harap Putar Perangkat Anda</h2>
+        <p class="text-gray-600 mt-2">Aplikasi ini dirancang untuk tampilan landscape.</p>
+    </div>
+
+    <!-- Container Utama Aplikasi -->
+    <div id="app-container" class="bg-white flex-col w-screen h-screen">
+
+        <!-- Konten Utama (Halaman yang bisa diganti) -->
+        <main class="flex-grow p-4 overflow-auto">
+
+            <!-- Halaman Awal (Page 1) - (DIMODIFIKASI) -->
+            <div id="page-awal" class="page h-full" 
+                 style="background-image: url('https://cdn.pixabay.com/photo/2021/05/05/11/43/modern-6230891_1280.png'); background-size: cover; background-position: center; background-repeat: no-repeat;">
+                
+                <!-- (BARU) Kontainer konten dengan latar belakang semi-transparan untuk keterbacaan -->
+                <div class="flex flex-col items-center justify-center text-center h-full relative z-10 bg-white bg-opacity-75 p-4 rounded-lg">
+                    <img src="https://unnes.ac.id/lppm/wp-content/uploads/sites/16/2015/08/Logo-Transparan-Warna-1.png" 
+                         alt="Logo UNNES" 
+                         class="w-48 h-auto mb-4"
+                         onerror="this.src='https://placehold.co/200x200/F9E45B/003399?text=UNNES'; this.onerror=null;">
+                    <div class="border-2 border-blue-500 rounded-lg px-12 py-3 bg-white mb-4 shadow-lg">
+                        <h1 class="text-3xl font-bold text-yellow-500" style="text-shadow: 1px 1px 2px rgba(0,0,0,0.2);">NUMERASIYU</h1>
+                    </div>
+                    <p class="text-gray-700 font-medium">Selamat datang di aplikasi Numerasiyu.</p>
+                    <p class="text-gray-600 text-sm">Silakan pilih menu di bawah.</p>
+                </div>
+            </div>
+
+            <!-- Halaman Materi (Page 2) - (DIMODIFIKASI) -->
+            <div id="page-materi" class="page hidden flex flex-col h-full">
+                <h2 class="text-xl font-semibold mb-4 text-green-600">Halaman Materi</h2>
+                
+                <!-- (DIMODIFIKASI) Container diubah ke flex-col dan scroll-snap -->
+                <div class="flex-grow flex flex-col overflow-y-auto snap-y snap-mandatory">
+                
+                    <!-- Atas: Materi Iframe (DIMODIFIKASI) -->
+                    <div class="w-full h-full flex-shrink-0 border-4 border-green-500 rounded-lg bg-gray-50 overflow-hidden snap-start">
+                        <iframe src="https://www.canva.com/design/DAG4vcThXDs/0x7N7lcxNemZgrtoXQ5JJg/view?embed" 
+                                class="w-full h-full" 
+                                frameborder="0" 
+                                allow="fullscreen"
+                                title="Materi Numerasiyu">
+                        </iframe>
+                    </div>
+
+                    <!-- Bawah: Pemindai QR (DIMODIFIKASI) -->
+                    <div class="w-full h-full flex-shrink-0 flex flex-col p-4 border-4 border-blue-500 rounded-lg bg-white items-center snap-start">
+                        <h3 class="text-lg font-semibold text-center text-blue-800 mb-2">Pemindai QR</h3>
+                        <p class="text-sm text-gray-500 text-center mb-2">Gulir ke atas untuk kembali ke materi.</p>
+                        
+                        <!-- (DIMODIFIKASI) UI Diberi max-w-sm agar proporsional -->
+                        <div id="qr-scanner-ui" class="w-full max-w-sm flex flex-col justify-center">
+                            <!-- Pesan Status -->
+                            <div id="qr-status-message" class="text-center text-gray-600 p-4 border-2 border-dashed rounded-lg">
+                                Meminta izin kamera...
+                            </div>
+
+                            <!-- Wadah Video Pemindai -->
+                            <div id="qr-scanner-container" class="mb-4 w-full" style="display: none;">
+                                <video id="qr-video" playsinline></video>
+                            </div>
+
+                            <!-- (BARU) Wadah Hasil Pindaian (awalnya disembunyikan) -->
+                            <div id="qr-result-container" class="w-full" style="display: none;">
+                                <p class="text-gray-700 font-semibold mb-2">Hasil Pindaian:</p>
+                                
+                                <!-- Pratinjau Tautan (Iframe) -->
+                                <div id="qr-iframe-preview" class="my-2" style="display: none;">
+                                    <div class="w-full h-72 border rounded-md bg-gray-100 overflow-hidden shadow-inner">
+                                        <iframe id="qr-outputFrame" class="w-full h-full" frameborder="0"></iframe>
+                                    </div>
+                                    <p class="text-xs text-gray-500 mt-1 text-center">Catatan: Beberapa situs mungkin memblokir pratinjau.</p>
+                                </div>
+                                
+                                <!-- Pratinjau Data (Textarea) -->
+                                <div id="qr-data-preview" class="my-2" style="display: none;">
+                                    <textarea id="qr-outputData" class="w-full h-72 p-2 border rounded-md bg-gray-50 text-gray-800" readonly></textarea>
+                                </div>
+
+                                <!-- Tombol Aksi Hasil -->
+                                <div class="flex space-x-2 mt-2">
+                                    <button id="qr-copyButton" class="flex-1 bg-green-500 text-white px-3 py-2 rounded-lg shadow hover:bg-green-600 transition flex items-center justify-center space-x-1">
+                                        <i data-lucide="copy" class="w-4 h-4"></i>
+                                        <span>Salin</span>
+                                    </button>
+                                    <button id="qr-scanAgainButton" class="flex-1 bg-gray-500 text-white px-3 py-2 rounded-lg shadow hover:bg-gray-600 transition flex items-center justify-center space-x-1">
+                                        <i data-lucide="camera" class="w-4 h-4"></i>
+                                        <span>Pindai Lagi</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Halaman Asesmen/Kuis (Page 3) -->
+            <div id="page-asesmen" class="page hidden flex flex-col h-full">
+                <h2 class="text-xl font-semibold mb-4 text-red-600">Halaman Kuis / Asesmen</h2>
+                <div class="flex-grow border-4 border-red-500 rounded-lg bg-gray-50 overflow-hidden">
+                   <iframe src="https://www.canva.com/design/DAG4vawr2K8/X6Ibh3XxTr7Dnq3uP5vL1Q/view?embed" 
+                            class="w-full h-full" 
+                            frameborder="0" 
+                            allow="fullscreen"
+                            title="Asesmen Numerasiyu">
+                    </iframe>
+                </div>
+            </div>
+
+            <!-- Halaman Profil (Page 4) -->
+            <div id="page-profil" class="page hidden flex flex-col h-full">
+                <h2 class="text-xl font-semibold mb-4 text-yellow-600">Halaman Profil</h2>
+                <div class="flex-grow rounded-lg bg-yellow-50 border-4 border-yellow-500 flex overflow-hidden shadow-inner">
+                    <div class="flex-1 p-4 md:p-6 bg-white m-2 md:m-4 rounded-lg shadow-sm">
+                        <h3 class="text-2xl font-bold text-blue-800 mb-4">Profil Pengembang</h3>
+                        <p class="text-black-700 mb-2">Aplikasi Numerasiyu ini dikembangkan oleh:</p>
+                        <ul class="list-disc pl-5 space-y-1 text-gray-600">
+                            <li>Yusril Yahya Muhaimin </li>
+                            <li>dengan bimbingan Prof. Dr. Sri Wardani, M.Si.</li>
+                            <li>Program Studi Pendidikan Dasar</li>
+                            <li>Sekolah Pascasarjana</li>
+                            <li>Universitas Negeri Semarang</li>
+                        </ul>
+                    </div>
+                    <div class="w-1/3 flex flex-col items-center justify-center p-4">
+                        <img src="https://unnes.ac.id/lppm/wp-content/uploads/sites/16/2015/08/Logo-Transparan-Warna-1.png" 
+                             alt="Logo UNNES" 
+                             class="w-32 h-auto mb-2"
+                             onerror="this.src='https://placehold.co/150x150/F9E45B/003399?text=UNNES'; this.onerror=null;">
+                        <h4 class="font-semibold text-lg text-blue-900 mt-2">UNNES</h4>
+                        <p class="text-xs text-blue-800 text-center">UNIVERSITAS NEGERI SEMARANG</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Footer Navigasi -->
+        <nav class="flex justify-around bg-white border-t p-2">
+            <button data-page="page-awal" class="nav-button flex flex-col items-center w-1/5" title="Halaman Awal">
+                <i data-lucide="home" class="w-6 h-6 text-blue-500"></i>
+                <span class="text-xs font-medium text-blue-500">Halaman Awal</span>
+            </button>
+            <button data-page="page-materi" class="nav-button flex flex-col items-center w-1/5" title="Materi">
+                <i data-lucide="book-open" class="w-6 h-6 text-green-500"></i>
+                <span class="text-xs font-medium text-gray-500">Materi</span>
+            </button>
+            <button data-page="page-asesmen" class="nav-button flex flex-col items-center w-1/5" title="Asesmen">
+                <i data-lucide="calculator" class="w-6 h-6 text-red-500"></i>
+                <span class="text-xs font-medium text-gray-500">Asesmen</span>
+            </button>
+            <button data-page="page-profil" class="nav-button flex flex-col items-center w-1/5" title="Profil">
+                <i data-lucide="user" class="w-6 h-6 text-yellow-500"></i>
+                <span class="text-xs font-medium text-gray-500">Profil</span>
+            </button>
+            <button id="exit-button" class="flex flex-col items-center w-1/5" title="Keluar">
+                <i data-lucide="log-out" class="w-6 h-6 text-red-500"></i>
+                <span class="text-xs font-medium text-red-500">Keluar</span>
+            </button>
+        </nav>
+    </div>
+
+    <!-- (BARU) Canvas untuk pemrosesan QR (disembunyikan) -->
+    <canvas id="qr-canvas" style="display: none;"></canvas>
+
+    <script>
+        // Menginisialisasi ikon Lucide
+        lucide.createIcons();
+
+        // --- (BARU) Logika untuk Pemindai QR ---
+        const qrVideo = document.getElementById('qr-video');
+        const qrCanvas = document.getElementById('qr-canvas');
+        const qrCanvasCtx = qrCanvas.getContext('2d');
+        const qrStatusMessage = document.getElementById('qr-status-message');
+        const qrScannerContainer = document.getElementById('qr-scanner-container');
+        const qrResultContainer = document.getElementById('qr-result-container');
+        
+        const qrIframePreview = document.getElementById('qr-iframe-preview');
+        const qrOutputFrame = document.getElementById('qr-outputFrame');
+        const qrDataPreview = document.getElementById('qr-data-preview');
+        const qrOutputData = document.getElementById('qr-outputData');
+        
+        const qrCopyButton = document.getElementById('qr-copyButton');
+        const qrScanAgainButton = document.getElementById('qr-scanAgainButton');
+
+        let qrStream = null;
+        let qrAnimationLoopId = null;
+
+        // Fungsi untuk menampilkan pesan error pemindai
+        function showQrError(message) {
+            qrStatusMessage.textContent = message;
+            qrStatusMessage.style.display = 'block';
+            qrScannerContainer.style.display = 'none';
+            qrResultContainer.style.display = 'none';
+        }
+
+        // Fungsi untuk memulai pemindai
+        async function startQrScanner() {
+            // Reset UI
+            qrStatusMessage.textContent = "Meminta izin kamera...";
+            qrStatusMessage.style.display = 'block';
+            qrScannerContainer.style.display = 'none';
+            qrResultContainer.style.display = 'none';
+            qrIframePreview.style.display = 'none';
+            qrDataPreview.style.display = 'none';
+            qrOutputFrame.src = 'about:blank';
+
+            // Hentikan stream lama jika ada
+            if (qrStream) {
+                qrStream.getTracks().forEach(track => track.stop());
+                qrStream = null;
+            }
+            if (qrAnimationLoopId) {
+                cancelAnimationFrame(qrAnimationLoopId);
+                qrAnimationLoopId = null;
+            }
+
+            // Cek ketersediaan jsQR
+            if (typeof jsQR === 'undefined') {
+                showQrError("Gagal memuat pustaka QR. Coba segarkan halaman.");
+                return;
+            }
+
+            try {
+                // Meminta akses kamera (prioritaskan kamera belakang)
+                qrStream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: "environment" } 
+                });
+
+                qrVideo.srcObject = qrStream;
+                qrVideo.style.display = 'block';
+                
+                qrStatusMessage.style.display = 'none';
+                qrScannerContainer.style.display = 'block';
+
+                qrVideo.play();
+                // Mulai scanning loop
+                qrAnimationLoopId = requestAnimationFrame(qrTick);
+
+            } catch (err) {
+                console.error("Error akses kamera QR: ", err);
+                let errorMessage = "Tidak bisa mengakses kamera.";
+                if (err.name === "NotAllowedError") {
+                    errorMessage = "Anda menolak izin kamera.";
+                } else if (err.name === "NotFoundError") {
+                    errorMessage = "Tidak ditemukan kamera.";
+                }
+                showQrError(errorMessage);
+            }
+        }
+
+        // Fungsi untuk menghentikan pemindai
+        function stopQrScanner() {
+            if (qrStream) {
+                qrStream.getTracks().forEach(track => track.stop());
+                qrStream = null;
+            }
+            if (qrAnimationLoopId) {
+                cancelAnimationFrame(qrAnimationLoopId);
+                qrAnimationLoopId = null;
+            }
+            qrVideo.pause();
+            qrVideo.srcObject = null;
+            qrScannerContainer.style.display = 'none';
+            qrStatusMessage.style.display = 'block';
+            qrStatusMessage.textContent = "Kamera nonaktif.";
+        }
+
+        // Fungsi loop pemindaian per frame
+        function qrTick() {
+            if (qrVideo.readyState === qrVideo.HAVE_ENOUGH_DATA) {
+                qrCanvas.height = qrVideo.videoHeight;
+                qrCanvas.width = qrVideo.videoWidth;
+                qrCanvasCtx.drawImage(qrVideo, 0, 0, qrCanvas.width, qrCanvas.height);
+                const imageData = qrCanvasCtx.getImageData(0, 0, qrCanvas.width, qrCanvas.height);
+                
+                const code = jsQR(imageData.data, imageData.width, imageData.height, {
+                    inversionAttempts: "dontInvert",
+                });
+
+                if (code) {
+                    // Kode ditemukan!
+                    handleQrCode(code.data);
+                    return; // Hentikan loop
+                }
+            }
+            // Lanjut ke frame berikutnya
+            if (qrStream && qrStream.active) {
+                qrAnimationLoopId = requestAnimationFrame(qrTick);
+            }
+        }
+
+        // Fungsi untuk menangani hasil QR
+        function handleQrCode(data) {
+            // Hentikan video tapi jangan hentikan stream dulu
+            qrVideo.pause();
+            if (qrAnimationLoopId) {
+                cancelAnimationFrame(qrAnimationLoopId);
+                qrAnimationLoopId = null;
+            }
+
+            // Tampilkan hasil
+            qrScannerContainer.style.display = 'none';
+            qrResultContainer.style.display = 'block';
+            qrOutputData.value = data;
+
+            // Periksa apakah data adalah URL
+            if (data.startsWith('http://') || data.startsWith('https://') || (data.startsWith('www.') && !data.includes(' '))) {
+                qrOutputFrame.src = data.startsWith('www.') ? `https://${data}` : data;
+                qrIframePreview.style.display = 'block';
+                qrDataPreview.style.display = 'none';
+            } else {
+                // Jika teks biasa
+                qrIframePreview.style.display = 'none';
+                qrDataPreview.style.display = 'block';
+            }
+            
+            qrCopyButton.textContent = 'Salin';
+            // Render ulang ikon lucide
+            lucide.createIcons();
+        }
+
+        // Event listener untuk tombol "Salin Teks"
+        qrCopyButton.addEventListener('click', () => {
+            qrOutputData.select();
+            try {
+                document.execCommand('copy');
+                qrCopyButton.querySelector('span').textContent = 'Tersalin!';
+                setTimeout(() => {
+                    qrCopyButton.querySelector('span').textContent = 'Salin';
+                }, 2000);
+            } catch (err) {
+                console.error('Gagal menyalin teks QR: ', err);
+            }
+        });
+
+        // Event listener untuk tombol "Pindai Lagi"
+        qrScanAgainButton.addEventListener('click', () => {
+            // Mulai ulang scanner (tanpa mematikan stream, hanya resume)
+            qrResultContainer.style.display = 'none';
+            qrScannerContainer.style.display = 'block';
+            qrVideo.play();
+            qrAnimationLoopId = requestAnimationFrame(qrTick);
+        });
+
+
+        // --- Logika Navigasi Halaman (Utama) ---
+        document.addEventListener('DOMContentLoaded', () => {
+            const navButtons = document.querySelectorAll('.nav-button');
+            const pages = document.querySelectorAll('.page');
+            
+            const activeColors = {
+                'page-awal': 'text-blue-500',
+                'page-materi': 'text-green-500',
+                'page-asesmen': 'text-red-500',
+                'page-profil': 'text-yellow-500'
+            };
+            
+            function setActivePage(pageId) {
+                pages.forEach(page => {
+                    page.classList.add('hidden');
+                });
+                
+                const activePage = document.getElementById(pageId);
+                if (activePage) {
+                    activePage.classList.remove('hidden');
+                }
+                
+                navButtons.forEach(button => {
+                    const span = button.querySelector('span');
+                    const buttonPageId = button.dataset.page;
+                    
+                    span.classList.remove(...Object.values(activeColors));
+                    span.classList.add('text-gray-500');
+                    
+                    if (buttonPageId === pageId) {
+                        span.classList.remove('text-gray-500');
+                        span.classList.add(activeColors[pageId]);
+                    }
+                });
+
+                // (BARU) Logika untuk mengontrol pemindai QR
+                if (pageId === 'page-materi') {
+                    // Jika pindah ke Halaman Materi, mulai pemindai
+                    console.log("Mulai pemindai QR...");
+                    startQrScanner();
+                } else {
+                    // Jika pindah ke halaman LAIN, hentikan pemindai
+                    console.log("Hentikan pemindai QR...");
+                    stopQrScanner();
+                }
+
+                // Render ulang ikon lucide jika ada yg baru (seperti di hasil QR)
+                lucide.createIcons();
+            }
+
+            navButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const pageId = button.dataset.page;
+                    setActivePage(pageId);
+                });
+            });
+
+            setActivePage('page-awal');
+
+            const exitButton = document.getElementById('exit-button');
+            if (exitButton) {
+                exitButton.addEventListener('click', () => {
+                    console.log("Mencoba keluar dari aplikasi...");
+                    window.close();
+                });
+            }
+        });
+    </script>
+</body>
+</html>
